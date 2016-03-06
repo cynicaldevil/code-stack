@@ -6,7 +6,8 @@
 #include <string.h>
 #define MAX_INSTRUCTION_LENGTH 137
 #define MAX_NO_OF_INSTRUCTIONS 40
-#define NO_OF_KEYWORDS 27                                   //(12 + 12 + 3)
+#define NO_OF_KEYWORDS 27
+#define NO_OF_REGISTERS 32                               //(12 + 12 + 3)
 
 //Global variables:
 const char * instructions[]= {
@@ -54,6 +55,7 @@ typedef struct symbolTable
   int  symbAddr[MAX_NO_OF_INSTRUCTIONS];
   int  size;
 }symbolTable;
+symbolTable st;
 
 int isTokenKeyword(char token[])
 {
@@ -63,10 +65,54 @@ int isTokenKeyword(char token[])
           return 1;
       }
   }
+  for(i = 0; i < NO_OF_REGISTERS; ++i) {
+      if (strcmp(registers[i], token) == 0) {
+          return 1;
+      }
+  }
   return 0;
 }
 
-symbolTable firstPass(FILE *fp, symbolTable st)
+void extractTokenFromLine(char instr[], int lineNum)
+{
+  char * token;                                                              //obtain tokens from each instr
+  token = strtok (instr," :/");
+  int noOfTokens=0;
+  int flag=0;
+  while (token != NULL)
+  {
+    if(noOfTokens==0 && !(isTokenKeyword(token)))
+    {
+      st.symbName[st.size]=token;
+      st.symbAddr[st.size]=lineNum;
+      st.size++;
+      printf("LABEL TOKEN:%s\n",token);
+    }
+    else if(( noOfTokens!=0 && !(isTokenKeyword(token)) && flag==1) || (noOfTokens==0 && strcmp(token,"SUBR") == 0))
+    {
+      if(flag==0)
+      {
+        flag=1;
+      }
+      else if(flag==1)
+      {
+        st.symbName[st.size]=token;
+        st.symbAddr[st.size]=lineNum;
+        st.size++;
+        flag=0;
+        printf("SUBR TOKEN:%s\n",token);
+      }
+
+    }
+    else
+      printf ("%s\n",token);
+    token = strtok (NULL, " :/,");
+    noOfTokens++;
+
+  }
+}
+
+void firstPass(FILE *fp)
 {
   char * line = NULL;
   size_t len = 0;
@@ -81,22 +127,9 @@ symbolTable firstPass(FILE *fp, symbolTable st)
     if ((newLine=strchr(instr, '\n')) != NULL)                                 //the instruction statment
       *newLine = '\0';                                                         //
 
-    char * token;                                                              //obtain tokens from each instr
-    token = strtok (instr," :/");
-    int noOfTokens=0;
-    while (token != NULL)
-    {
-      if(noOfTokens==0 && !(isTokenKeyword(token)))
-      {
-        st.symbName[st.size]=token;
-        st.size++;
-        printf("LABEL TOKEN:%s\n",token);
-      }
-      else
-        printf ("%s\n",token);
-      token = strtok (NULL, " :/,");
-      noOfTokens++;
-    }
+    extractTokenFromLine(instr,lineNum);
+
+
     lineNum++;
 
   }
@@ -109,14 +142,15 @@ symbolTable firstPass(FILE *fp, symbolTable st)
 int main(void)
 {
   FILE * fp;
-  symbolTable st;
+
   st.size=0;
 
-  fp = fopen("file.txt", "r");
+  fp = fopen("file.asm", "r");
   if (fp == NULL)
       exit(EXIT_FAILURE);
 
-  st=firstPass(fp,st);
+  firstPass(fp);
+  printf("jg\n");
 
 
 }
