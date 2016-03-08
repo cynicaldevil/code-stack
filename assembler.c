@@ -101,6 +101,50 @@ const char * opcodeOneAddrOne[] = {
   "010100000000000000000100",
 };
 
+const char * twoAddrZero[] = {
+"MOV",              "MOD",
+"ADD",              "AND",
+"SUB",              "OR",
+"MUL",              "XOR",
+"DIV",              "CMP",
+};
+const char * opcodeTwoAddrZero[] = {
+"10000000",         "10000101",
+"10000001",         "10000110",
+"10000010",         "10000111",
+"10000011",         "10001000",
+"10000100",         "10001001",
+};
+
+const char * twoAddrOne[] = {
+"STA",
+};
+const char * opcodeTwoAddrOne[] = {
+"100100000000",
+};
+
+const char * twoAddrTwo[] = {
+"LDA",
+};
+const char * opcodeTwoAddrTwo[] = {
+"101000000000",
+};
+
+const char * twoAddrThree[] = {
+"MOV",               "MOD",
+"ADD",               "AND",
+"SUB",               "OR",
+"MUL",               "XOR",
+"DIV",               "CMP",
+};
+const char * opcodeTwoAddrThree[] = {
+"1011000000000000",          "1011000000000101",
+"1011000000000001",          "1011000000000110",
+"1011000000000010",          "1011000000000111",
+"1011000000000011",          "1011000000001000",
+"1011000000000100",          "1011000000001001",
+};
+
 
 typedef struct symbolTable
 {
@@ -141,7 +185,7 @@ char *padStringWithZeroes(char output[],int pad)
 
 }
 
-char* intToBinary(int value,char otpt[]) {
+char* intToBinary(int value,char otpt[],int pad) {
 
   int pos = 0;
   char output[MAX_INSTRUCTION_LENGTH];
@@ -154,7 +198,7 @@ char* intToBinary(int value,char otpt[]) {
   char * newStr;
   newStr=reverseString(output);
   strcpy(output,newStr);
-  newStr=padStringWithZeroes(output,12);
+  newStr=padStringWithZeroes(output,pad);
   strcpy(output,newStr);
   strcpy(otpt,output);
   return otpt;
@@ -317,21 +361,37 @@ int findInstrAddrType(char instr[])
 
 }
 
-int findAddrSubtype(char instr[], int noOafAddress)
+int findAddrSubtype(char instr[], int noOfAddress)
 {
   char * token;
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
 
-  token = strtok (instrCopy," :/,");
-
-  switch (noOafAddress) {
-    case 1:token= strtok(NULL, " :/,");
+  switch (noOfAddress) {
+    case 1:{
+           token = strtok (instrCopy," :/,");
+           token= strtok(NULL, " :/,");
            if(isTokenReg(token))
              return 1;
            else return 0;
+           }
            break;
-    case 2:printf("2 addr inst!");
+
+    case 2:{
+            token = strtok (instrCopy," :/,");
+            if(strcmp("STA",token) == 0)
+              return 1;
+            else if(strcmp("LDA",token) == 0)
+              return 2;
+            else
+            {
+              token= strtok(NULL, " :/,");
+              token= strtok(NULL, " :/,");
+              if(isTokenReg(token))
+                return 3;
+              else return 0;
+            }
+            }
             break;
     default:printf("ERR: MORE THAN TWO ADDR INSTR NOT SUPPORTED");
             break;
@@ -368,26 +428,6 @@ void evaluateTypeOneAddress(char instr[])
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
 
-  // token = strtok (instrCopy," :/,");
-  // arrayLength=sizeof(oneAddrOne)/sizeof(oneAddrOne[0]);
-  //
-  // for(i = 0; i < arrayLength ; i++) {
-  //   if (strcmp(oneAddrOne[i], token) == 0)
-  //     printf("%s",opcodeOneAddrOne[i]);
-  // }
-  // // printf("%s\n",token);
-  // token= strtok(NULL, " :/,");
-  //
-  // // printf("tgfsrdgs %s %d\n",token, subType);
-  // arrayLength=sizeof(registers)/sizeof(registers[0]);
-  // for(i = 0; i < arrayLength ; i++) {
-  //   // printf("%s\n",token);
-  //     if (strcmp(registers[i], token) == 0) {
-  //         printf("%s",regAddr[i]);
-  //     }
-  // }
-
-
   int subType=findAddrSubtype(instr,1);
 
 
@@ -410,14 +450,6 @@ void evaluateTypeOneAddress(char instr[])
               if(strcmp(token,st.symbName[i]) == 0)
                 value=st.symbAddr[i];
             }
-            // if(isTokenLabel(token))
-            // {
-            //   for(i=0;i<st.size;i++)
-            //   {
-            //     if(strcmp(token,st.symbName[i]) == 0)
-            //       value=st.symbAddr[i];
-            //   }
-            // }
             if(value==-1)
             {
               char addr[MAX_INSTRUCTION_LENGTH];
@@ -428,7 +460,7 @@ void evaluateTypeOneAddress(char instr[])
               strcpy(addr,newStr);
               value=atoi(addr);
             }
-            output=intToBinary(value,otpt);
+            output=intToBinary(value,otpt,12);
             printf("%s", output);
             }
             break;
@@ -457,7 +489,146 @@ void evaluateTypeOneAddress(char instr[])
   }
 
   printf("\n");
+}
 
+
+void evaluateTypeTwoAddress(char instr[])
+{
+  int i;
+  int arrayLength;
+  char * token;
+  char instrCopy[MAX_INSTRUCTION_LENGTH];
+  strcpy(instrCopy,instr);
+
+  int subType=findAddrSubtype(instr,2);
+  // printf("subtype: %d\n",subType);
+
+
+  switch(subType)
+  {
+    case 0:{
+              token = strtok (instrCopy," :/,");
+              arrayLength=sizeof(twoAddrZero)/sizeof(twoAddrZero[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                if (strcmp(twoAddrZero[i], token) == 0)
+                  printf("%s",opcodeTwoAddrZero[i]);
+              }
+
+              token= strtok(NULL, " :/,");
+              arrayLength=sizeof(registers)/sizeof(registers[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                  if (strcmp(registers[i], token) == 0) {
+                      printf("%s",regAddr[i]);
+                  }
+              }
+
+              token= strtok(NULL, " :/,");
+              char * output;
+              char otpt[MAX_INSTRUCTION_LENGTH];
+              char addr[MAX_INSTRUCTION_LENGTH];
+              strcpy(addr,token);
+              char *newStr = addr;
+              *(newStr++);
+              strcpy(addr,newStr);
+              int value=atoi(addr);
+              output=intToBinary(value,otpt,16);
+              printf("%s", output);
+            }
+            break;
+    case 1:{
+              token = strtok (instrCopy," :/,");
+                  printf("%s",opcodeTwoAddrOne[0]);
+
+              token= strtok(NULL, " :/,");
+              char * output;
+              // printf("gfsa\n");
+              char otpt[MAX_INSTRUCTION_LENGTH];
+              char addr[MAX_INSTRUCTION_LENGTH];
+              strcpy(addr,token);
+              char *newStr = addr;
+              *(newStr++);
+              strcpy(addr,newStr);
+              int value=atoi(addr);
+              output=intToBinary(value,otpt,12);
+              printf("%s", output);
+
+              token= strtok(NULL, " :/,");
+              arrayLength=sizeof(registers)/sizeof(registers[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                  if (strcmp(registers[i], token) == 0) {
+                      printf("%s",regAddr[i]);
+                  }
+              }
+            }
+            break;
+    case 2:{
+              token = strtok (instrCopy," :/,");
+                  printf("%s",opcodeTwoAddrTwo[0]);
+
+              token= strtok(NULL, " :/,");
+              arrayLength=sizeof(registers)/sizeof(registers[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                  if (strcmp(registers[i], token) == 0) {
+                      printf("%s",regAddr[i]);
+                  }
+              }
+
+              token= strtok(NULL, " :/,");
+              char * output;
+              // printf("gfsa\n");
+              char otpt[MAX_INSTRUCTION_LENGTH];
+              char addr[MAX_INSTRUCTION_LENGTH];
+              strcpy(addr,token);
+              char *newStr = addr;
+              *(newStr++);
+              strcpy(addr,newStr);
+              int value=atoi(addr);
+              output=intToBinary(value,otpt,12);
+              printf("%s", output);
+
+            }
+            break;
+    case 3:{
+              char binaryInstr[100];
+              token = strtok (instrCopy," :/,");
+              arrayLength=sizeof(twoAddrThree)/sizeof(twoAddrThree[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                if (strcmp(twoAddrThree[i], token) == 0)
+                {
+                  printf("%s",opcodeTwoAddrThree[i]);
+                  // strcat(binaryInstr,opcodeTwoAddrThree[i]);
+                }
+                  // printf("%s",opcodeTwoAddrThree[i]);
+                  // fflush(stdout);
+              }
+
+              token= strtok(NULL, " :/,");
+              arrayLength=sizeof(registers)/sizeof(registers[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                  if (strcmp(registers[i], token) == 0) {
+                      strcat(binaryInstr,regAddr[i]);
+                      printf("%s",regAddr[i]);
+                      // fflush(stdout);
+                  }
+              }
+
+              token= strtok(NULL, " :/,");
+              arrayLength=sizeof(registers)/sizeof(registers[0]);
+              for(i = 0; i < arrayLength ; i++) {
+                  if (strcmp(registers[i], token) == 0) {
+                      strcat(binaryInstr,regAddr[i]);
+                      printf("%s",regAddr[i]);
+                      // fflush(stdout);
+                  }
+              }
+              // printf("%s",binaryInstr);
+            }
+            break;
+    default:printf("NO!");
+            break;
+  }
+
+  printf("\n");
 }
 
 void convertLineToMachineCode(char instr[], int lineNum)
@@ -467,7 +638,7 @@ void convertLineToMachineCode(char instr[], int lineNum)
 
   int noOfAddress;
   noOfAddress=findInstrAddrType(instr);
-  printf("addrtype for line %d: %d \n",lineNum, noOfAddress);
+  // printf("addrtype for line %d: %d \n",lineNum, noOfAddress);
   switch(noOfAddress)
   {
     case 0:evaluateTypeZeroAddress(instr);
@@ -475,6 +646,9 @@ void convertLineToMachineCode(char instr[], int lineNum)
 
     case 1:evaluateTypeOneAddress(instr);
           break;
+
+    case 2:evaluateTypeTwoAddress(instr);
+           break;
 
     default:printf("default case\n");
           break;
