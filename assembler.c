@@ -9,6 +9,8 @@
 #define NO_OF_KEYWORDS 27
 #define NO_OF_REGISTERS 32                               //(25 + 7)
 
+void convertLineToMachineCode(char instr[], FILE * inputFp);
+
 //Global variables:
 const char * instructions[]= {
   "MOV",
@@ -264,13 +266,13 @@ void extractTokenFromLine(char instr[], int lineNum)
     // if(noOfTokens==0 && !(isTokenKeyword(token,noOfTokens)))
     if(isTokenLabel(token, noOfTokens))
     {
-      printf("%s %d\n",token,lineNum);
+      // printf("%s %d\n",token,lineNum);
       st.symbName[st.size] = (char *)malloc(sizeof(char)*MAX_INSTRUCTION_LENGTH);  // reserve space of len
       strcpy(st.symbName[st.size],token); // copy string
       // strcpy(st.symbName[st.size],temp);
       st.symbAddr[st.size]=lineNum;
       // printf("LABEL TOKEN:%s\n",token);
-      printf("table contents: %s, %d",st.symbName[st.size],st.symbAddr[st.size]);
+      // printf("table contents: %s, %d",st.symbName[st.size],st.symbAddr[st.size]);
       st.size++;
 
     }
@@ -400,7 +402,7 @@ int findAddrSubtype(char instr[], int noOfAddress)
 }
 
 
-void evaluateTypeZeroAddress(char instr[])
+void evaluateTypeZeroAddress(char instr[], FILE * inputFp)
 {
 
   char * token;
@@ -414,13 +416,13 @@ void evaluateTypeZeroAddress(char instr[])
   int arrayLength=sizeof(zeroAddrZero)/sizeof(zeroAddrZero[0]);
   for(i = 0; i < arrayLength ; i++) {
       if (strcmp(zeroAddrZero[i], token) == 0) {
-          printf("%s\n",opcodeZeroAddrZero[i]);
+          fprintf(inputFp, "%s\n", opcodeZeroAddrZero[i]);
       }
 
   }
 }
 
-void evaluateTypeOneAddress(char instr[])
+void evaluateTypeOneAddress(char instr[], FILE * inputFp)
 {
   int i;
   int arrayLength;
@@ -438,7 +440,7 @@ void evaluateTypeOneAddress(char instr[])
             arrayLength=sizeof(oneAddrZero)/sizeof(oneAddrZero[0]);
             for(i = 0; i < arrayLength ; i++) {
               if (strcmp(oneAddrZero[i], token) == 0)
-                printf("%s",opcodeOneAddrZero[i]);
+                fprintf(inputFp, "%s",opcodeOneAddrZero[i]);
             }
 
             token= strtok(NULL, " :/,");
@@ -461,7 +463,7 @@ void evaluateTypeOneAddress(char instr[])
               value=atoi(addr);
             }
             output=intToBinary(value,otpt,12);
-            printf("%s", output);
+            fprintf(inputFp, "%s", output);
             }
             break;
     case 1:{
@@ -470,7 +472,7 @@ void evaluateTypeOneAddress(char instr[])
 
             for(i = 0; i < arrayLength ; i++) {
               if (strcmp(oneAddrOne[i], token) == 0)
-                printf("%s",opcodeOneAddrOne[i]);
+                fprintf(inputFp, "%s",opcodeOneAddrOne[i]);
             }
             token= strtok(NULL, " :/,");
 
@@ -478,7 +480,7 @@ void evaluateTypeOneAddress(char instr[])
             for(i = 0; i < arrayLength ; i++) {
               // printf("%s\n",token);
                 if (strcmp(registers[i], token) == 0) {
-                    printf("%s",regAddr[i]);
+                    fprintf(inputFp, "%s",regAddr[i]);
                 }
             }
             }
@@ -488,17 +490,113 @@ void evaluateTypeOneAddress(char instr[])
 
   }
 
-  printf("\n");
+  fprintf(inputFp, "\n");
+}
+
+int instrIsCISC(char instr[])
+{
+  char * token;
+  char instrCopy[MAX_INSTRUCTION_LENGTH];
+  strcpy(instrCopy,instr);
+  token = strtok (instrCopy," :/,");
+  token= strtok(NULL, " :/,");
+  token= strtok(NULL, " :/,");
+  const char * temp=token;
+  if(strchr(temp,'-') ||strchr(temp,'+') ||strchr(temp,'*'))
+    return 1;
+  else
+    return 0;
+
+}
+
+void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
+{
+
+  char ciscinstr[MAX_INSTRUCTION_LENGTH];
+  char firstOp[MAX_INSTRUCTION_LENGTH];
+  char secondOp[MAX_INSTRUCTION_LENGTH];
+  char secondOp1Var[MAX_INSTRUCTION_LENGTH];
+  char midOp[2];
+  char secondOp2Var[MAX_INSTRUCTION_LENGTH];
+  char * token;
+  char instrCopy[MAX_INSTRUCTION_LENGTH];
+  strcpy(instrCopy,instr);
+
+
+  token = strtok (instrCopy," :/,");
+  strcpy(ciscinstr,token);
+  // printf("hshs %s\n", ciscinstr);
+
+  token = strtok (NULL," :/,");
+  strcpy(firstOp,token);
+  // printf("hshs %s\n", firstOp);
+
+  token = strtok (NULL," :/,");
+  strcpy(secondOp,token);
+  if(strchr(secondOp,'-'))
+    midOp[0]='-';
+  else if(strchr(secondOp,'+'))
+    midOp[0]='+';
+  else if(strchr(secondOp,'*'))
+    midOp[0]='*';
+  // printf("hshs %s\n", midOp);
+
+  token = strtok (secondOp," :/,*+-");
+  strcpy(secondOp1Var,token);
+  // printf("hshs %s\n", secondOp1Var);
+
+  token = strtok (NULL," :/,*+-");
+  strcpy(secondOp2Var,token);
+  // printf("hshs %s\n", secondOp2Var);
+
+
+  char instr1[MAX_INSTRUCTION_LENGTH];
+  strcat(instr1, ciscinstr);
+  strcat(instr1, " EAX, ");
+  strcat(instr1, secondOp1Var);
+
+  char instr2[MAX_INSTRUCTION_LENGTH];
+  if(strcmp(midOp,"-")==0)
+    strcat(instr2, "SUB EAX, #");
+  else if(strcmp(midOp,"+")==0)
+    strcat(instr2, "ADD EAX, #");
+  else if(strcmp(midOp,"*")==0)
+    strcat(instr2, "MUL EAX, #");
+  strcat(instr2, secondOp2Var);
+
+  char instr3[MAX_INSTRUCTION_LENGTH];
+  // printf("instr3: %s\n", instr4);
+  // strcat(instr3,ciscinstr);
+  strcat(instr3, " ");
+  strcat(instr3, firstOp);
+  strcat(instr3, ", EAX");
+
+
+  printf("%s\n%s\n%s\n",instr1,instr2,instr3);
+
+  convertLineToMachineCode(instr1, inputFp);
+  convertLineToMachineCode(instr2, inputFp);
+  convertLineToMachineCode(instr3, inputFp);
+
+
 }
 
 
-void evaluateTypeTwoAddress(char instr[])
+void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
 {
   int i;
   int arrayLength;
   char * token;
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
+
+  if(instrIsCISC(instr))
+  {
+    evaluateTwoAddrCISC(instr,inputFp);
+    // fprintf(inputFp, "isnstr isCISC\n");
+    return;
+  }
+
 
   int subType=findAddrSubtype(instr,2);
   // printf("subtype: %d\n",subType);
@@ -511,14 +609,14 @@ void evaluateTypeTwoAddress(char instr[])
               arrayLength=sizeof(twoAddrZero)/sizeof(twoAddrZero[0]);
               for(i = 0; i < arrayLength ; i++) {
                 if (strcmp(twoAddrZero[i], token) == 0)
-                  printf("%s",opcodeTwoAddrZero[i]);
+                  fprintf(inputFp, "%s",opcodeTwoAddrZero[i]);
               }
 
               token= strtok(NULL, " :/,");
               arrayLength=sizeof(registers)/sizeof(registers[0]);
               for(i = 0; i < arrayLength ; i++) {
                   if (strcmp(registers[i], token) == 0) {
-                      printf("%s",regAddr[i]);
+                    fprintf(inputFp, "%s",regAddr[i]);
                   }
               }
 
@@ -532,12 +630,12 @@ void evaluateTypeTwoAddress(char instr[])
               strcpy(addr,newStr);
               int value=atoi(addr);
               output=intToBinary(value,otpt,16);
-              printf("%s", output);
+              fprintf(inputFp, "%s", output);
             }
             break;
     case 1:{
               token = strtok (instrCopy," :/,");
-                  printf("%s",opcodeTwoAddrOne[0]);
+                  fprintf(inputFp, "%s",opcodeTwoAddrOne[0]);
 
               token= strtok(NULL, " :/,");
               char * output;
@@ -550,26 +648,26 @@ void evaluateTypeTwoAddress(char instr[])
               strcpy(addr,newStr);
               int value=atoi(addr);
               output=intToBinary(value,otpt,12);
-              printf("%s", output);
+              fprintf(inputFp, "%s", output);
 
               token= strtok(NULL, " :/,");
               arrayLength=sizeof(registers)/sizeof(registers[0]);
               for(i = 0; i < arrayLength ; i++) {
                   if (strcmp(registers[i], token) == 0) {
-                      printf("%s",regAddr[i]);
+                      fprintf(inputFp, "%s",regAddr[i]);
                   }
               }
             }
             break;
     case 2:{
               token = strtok (instrCopy," :/,");
-                  printf("%s",opcodeTwoAddrTwo[0]);
+                  fprintf(inputFp, "%s",opcodeTwoAddrTwo[0]);
 
               token= strtok(NULL, " :/,");
               arrayLength=sizeof(registers)/sizeof(registers[0]);
               for(i = 0; i < arrayLength ; i++) {
                   if (strcmp(registers[i], token) == 0) {
-                      printf("%s",regAddr[i]);
+                      fprintf(inputFp, "%s",regAddr[i]);
                   }
               }
 
@@ -584,7 +682,7 @@ void evaluateTypeTwoAddress(char instr[])
               strcpy(addr,newStr);
               int value=atoi(addr);
               output=intToBinary(value,otpt,12);
-              printf("%s", output);
+              fprintf(inputFp, "%s", output);
 
             }
             break;
@@ -595,11 +693,8 @@ void evaluateTypeTwoAddress(char instr[])
               for(i = 0; i < arrayLength ; i++) {
                 if (strcmp(twoAddrThree[i], token) == 0)
                 {
-                  printf("%s",opcodeTwoAddrThree[i]);
-                  // strcat(binaryInstr,opcodeTwoAddrThree[i]);
+                  fprintf(inputFp, "%s",opcodeTwoAddrThree[i]);
                 }
-                  // printf("%s",opcodeTwoAddrThree[i]);
-                  // fflush(stdout);
               }
 
               token= strtok(NULL, " :/,");
@@ -607,7 +702,7 @@ void evaluateTypeTwoAddress(char instr[])
               for(i = 0; i < arrayLength ; i++) {
                   if (strcmp(registers[i], token) == 0) {
                       strcat(binaryInstr,regAddr[i]);
-                      printf("%s",regAddr[i]);
+                      fprintf(inputFp, "%s",regAddr[i]);
                       // fflush(stdout);
                   }
               }
@@ -617,37 +712,35 @@ void evaluateTypeTwoAddress(char instr[])
               for(i = 0; i < arrayLength ; i++) {
                   if (strcmp(registers[i], token) == 0) {
                       strcat(binaryInstr,regAddr[i]);
-                      printf("%s",regAddr[i]);
-                      // fflush(stdout);
+                      fprintf(inputFp, "%s",regAddr[i]);
                   }
               }
-              // printf("%s",binaryInstr);
             }
             break;
     default:printf("NO!");
             break;
   }
 
-  printf("\n");
+  fprintf(inputFp, "\n");
 }
 
-void convertLineToMachineCode(char instr[], int lineNum)
+void convertLineToMachineCode(char instr[], FILE * inputFp)
 {
   instr=removeLabel(instr);
-  printf("%s\n",instr);
+  // printf("%s\n",instr);
 
   int noOfAddress;
   noOfAddress=findInstrAddrType(instr);
   // printf("addrtype for line %d: %d \n",lineNum, noOfAddress);
   switch(noOfAddress)
   {
-    case 0:evaluateTypeZeroAddress(instr);
+    case 0:evaluateTypeZeroAddress(instr, inputFp);
           break;
 
-    case 1:evaluateTypeOneAddress(instr);
+    case 1:evaluateTypeOneAddress(instr, inputFp);
           break;
 
-    case 2:evaluateTypeTwoAddress(instr);
+    case 2:evaluateTypeTwoAddress(instr, inputFp);
            break;
 
     default:printf("default case\n");
@@ -656,7 +749,7 @@ void convertLineToMachineCode(char instr[], int lineNum)
 
 }
 
-void secondPass(FILE * fp)
+void secondPass(FILE * fp, FILE * inputFp)
 {
 
   char * line = NULL;
@@ -673,7 +766,7 @@ void secondPass(FILE * fp)
     if ((newLine=strchr(instr, '\n')) != NULL)                                 //the instruction statment
       *newLine = '\0';                                                         //
 
-    convertLineToMachineCode(instr,lineNum);
+    convertLineToMachineCode(instr,inputFp);
     lineNum++;
 
   }
@@ -690,11 +783,15 @@ int main(void)
   FILE * fp1;
   FILE * fp2;
 
+  FILE * inputFp;
+
   st.size=0;
 
   fp1 = fopen("file2.asm", "r");
   if (fp1 == NULL)
       exit(EXIT_FAILURE);
+
+  inputFp=fopen("binary.txt", "w");
 
   firstPass(fp1);
 
@@ -705,9 +802,10 @@ int main(void)
 
   // printf("%d, %s\n",st.symbAddr[0],st.symbName[0]);
 
-  secondPass(fp2);
-  printf("sfdhghyhdj\n");
+  secondPass(fp2,inputFp);
+  // printf("sfdhghyhdj\n");
 
+  fclose(inputFp);
   fclose(fp1);
   fclose(fp2);
 
