@@ -6,7 +6,7 @@
 #include <string.h>
 #define MAX_INSTRUCTION_LENGTH 137
 #define MAX_NO_OF_INSTRUCTIONS 40
-#define NO_OF_KEYWORDS 27
+#define NO_OF_KEYWORDS 29
 #define NO_OF_REGISTERS 32                               //(25 + 7)
 
 void convertLineToMachineCode(char instr[], FILE * inputFp);
@@ -33,6 +33,8 @@ const char * instructions[]= {
   "SUBR",
   "PUSH",
   "RET",
+  "JGT",
+  "JLT",
   "INC",
   "DEC",
   "NOT",
@@ -76,7 +78,9 @@ const char * oneAddrZero[] = {
   "CALL",
   "SUBR",
   "PUSH",
-  "RET"
+  "RET",
+  "JGT",
+  "JLT",
 };
 const char * opcodeOneAddrZero[] = {
   "01000000000000000000",
@@ -86,6 +90,8 @@ const char * opcodeOneAddrZero[] = {
   "01000000000000000100",
   "01000000000000000101",
   "01000000000000000110",
+  "01000000000000000111",
+  "01000000000000001000",
 };
 
 const char * oneAddrOne[] = {
@@ -333,7 +339,7 @@ char *removeLabel(char instr[])
   char * token;                                                                //obtain tokens from each instr
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
-
+  // printf("instr before remvoval %s", instr);
   token = strtok (instrCopy," :/,");
   if(!isTokenKeyword(token))
   {
@@ -347,6 +353,7 @@ char *removeLabel(char instr[])
 
 int findInstrAddrType(char instr[])
 {
+  // printf("instr: %s\n", instr);
   char * token;                                                                //obtain tokens from each instr
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
@@ -422,6 +429,87 @@ void evaluateTypeZeroAddress(char instr[], FILE * inputFp)
   }
 }
 
+int instrIsCISC(char instr[],int noOfAddr)
+{
+  char * token;
+  char instrCopy[MAX_INSTRUCTION_LENGTH];
+  strcpy(instrCopy,instr);
+  token = strtok (instrCopy," :/,");
+  token= strtok(NULL, " :/,");
+  if(noOfAddr>1)
+    token= strtok(NULL, " :/,");
+  const char * temp=token;
+  if(strchr(temp,'-') ||strchr(temp,'+') ||strchr(temp,'*'))
+    return 1;
+  else
+    return 0;
+
+}
+
+void evaluateOneAddrCISC(char instr[], FILE * inputFp)
+{
+  char ciscinstr[MAX_INSTRUCTION_LENGTH];
+  char operand[MAX_INSTRUCTION_LENGTH];
+  char operand1Var[MAX_INSTRUCTION_LENGTH];
+  char midOp[2];
+  char operand2Var[MAX_INSTRUCTION_LENGTH];
+  char * token;
+  char instrCopy[MAX_INSTRUCTION_LENGTH];
+  strcpy(instrCopy,instr);
+
+
+  token = strtok (instrCopy," :/,");
+  strcpy(ciscinstr,token);
+  // printf("hshs %s\n", ciscinstr);
+
+  token = strtok (NULL," :/,");
+  strcpy(operand,token);
+  if(strchr(operand,'-'))
+    midOp[0]='-';
+  else if(strchr(operand,'+'))
+    midOp[0]='+';
+  else if(strchr(operand,'*'))
+    midOp[0]='*';
+  // printf("hshs %s\n", midOp);
+
+  token = strtok (operand," :/,*+-");
+  strcpy(operand1Var,token);
+  // printf("hshs %s\n", operand1Var);
+
+  token = strtok (NULL," :/,*+-");
+  strcpy(operand2Var,token);
+  // printf("hshs %s\n", operand2Var);
+
+
+  char instr1[MAX_INSTRUCTION_LENGTH];
+  strcat(instr1, "MOV EAX, ");
+  strcat(instr1, operand1Var);
+
+  char instr2[MAX_INSTRUCTION_LENGTH];
+  if(strcmp(midOp,"-")==0)
+    strcat(instr2, "SUB EAX, #");
+  else if(strcmp(midOp,"+")==0)
+    strcat(instr2, "ADD EAX, #");
+  else if(strcmp(midOp,"*")==0)
+    strcat(instr2, "MUL EAX, #");
+  strcat(instr2, operand2Var);
+
+  char instr3[MAX_INSTRUCTION_LENGTH];
+  // printf("instr3: %s\n", instr4);
+  // strcat(instr3,ciscinstr);
+  strcat(instr3, " ");
+  strcat(instr3, "EAX");
+
+
+  // printf("%s\n%s\n%s\n",instr1,instr2,instr3);
+  //
+  convertLineToMachineCode(instr1, inputFp);
+  convertLineToMachineCode(instr2, inputFp);
+  convertLineToMachineCode(instr3, inputFp);
+
+
+}
+
 void evaluateTypeOneAddress(char instr[], FILE * inputFp)
 {
   int i;
@@ -429,6 +517,13 @@ void evaluateTypeOneAddress(char instr[], FILE * inputFp)
   char * token;
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
+
+  if(instrIsCISC(instr,1))
+  {
+    evaluateOneAddrCISC(instr,inputFp);
+    // fprintf(inputFp, "isnstr isCISC\n");
+    return;
+  }
 
   int subType=findAddrSubtype(instr,1);
 
@@ -493,21 +588,7 @@ void evaluateTypeOneAddress(char instr[], FILE * inputFp)
   fprintf(inputFp, "\n");
 }
 
-int instrIsCISC(char instr[])
-{
-  char * token;
-  char instrCopy[MAX_INSTRUCTION_LENGTH];
-  strcpy(instrCopy,instr);
-  token = strtok (instrCopy," :/,");
-  token= strtok(NULL, " :/,");
-  token= strtok(NULL, " :/,");
-  const char * temp=token;
-  if(strchr(temp,'-') ||strchr(temp,'+') ||strchr(temp,'*'))
-    return 1;
-  else
-    return 0;
 
-}
 
 void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
 {
@@ -551,8 +632,7 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
 
 
   char instr1[MAX_INSTRUCTION_LENGTH];
-  strcat(instr1, ciscinstr);
-  strcat(instr1, " EAX, ");
+  strcat(instr1, "MOV EAX, ");
   strcat(instr1, secondOp1Var);
 
   char instr2[MAX_INSTRUCTION_LENGTH];
@@ -572,7 +652,7 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
   strcat(instr3, ", EAX");
 
 
-  printf("%s\n%s\n%s\n",instr1,instr2,instr3);
+  // printf("%s\n%s\n%s\n",instr1,instr2,instr3);
 
   convertLineToMachineCode(instr1, inputFp);
   convertLineToMachineCode(instr2, inputFp);
@@ -590,7 +670,7 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
 
-  if(instrIsCISC(instr))
+  if(instrIsCISC(instr,2))
   {
     evaluateTwoAddrCISC(instr,inputFp);
     // fprintf(inputFp, "isnstr isCISC\n");
@@ -727,11 +807,11 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
 void convertLineToMachineCode(char instr[], FILE * inputFp)
 {
   instr=removeLabel(instr);
-  // printf("%s\n",instr);
+  // printf("AFTER REMOVAL: %s\n",instr);
 
   int noOfAddress;
   noOfAddress=findInstrAddrType(instr);
-  // printf("addrtype for line %d: %d \n",lineNum, noOfAddress);
+  // printf("addrtype for line  %d \n", noOfAddress);
   switch(noOfAddress)
   {
     case 0:evaluateTypeZeroAddress(instr, inputFp);
@@ -743,7 +823,7 @@ void convertLineToMachineCode(char instr[], FILE * inputFp)
     case 2:evaluateTypeTwoAddress(instr, inputFp);
            break;
 
-    default:printf("default case\n");
+    default:/*printf("default case\n");*/
           break;
   }
 
@@ -777,8 +857,14 @@ void secondPass(FILE * fp, FILE * inputFp)
 
 /*^^^^^^^^^^^^^^secondpass functions^^^^^^^^^^^^^^^*/
 
-int main(void)
+int main(int argc, char *argv[] )
 {
+    if ( argc != 3 )
+    {
+        /* We print argv[0] assuming it is the program name */
+        printf( "usage: gcc assembler.c -o binary\n./binr input.asm output.txt");
+    }
+
 
   FILE * fp1;
   FILE * fp2;
@@ -787,11 +873,11 @@ int main(void)
 
   st.size=0;
 
-  fp1 = fopen("file2.asm", "r");
+  fp1 = fopen(argv[1], "r");
   if (fp1 == NULL)
       exit(EXIT_FAILURE);
 
-  inputFp=fopen("binary.txt", "w");
+  inputFp=fopen(argv[2], "w");
 
   firstPass(fp1);
 
