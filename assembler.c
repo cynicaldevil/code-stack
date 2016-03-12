@@ -1,6 +1,11 @@
 // C program to convert assembly level instructions to
 // machine code.
 
+//EXAMPLE USAGE: gcc assembler.c -o binary
+// ./binary input.asm output.txt
+
+//remember to use R01, R02 nomenclature for registers instead of R1, R2 !!
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -187,8 +192,6 @@ char *padStringWithZeroes(char output[],int pad)
   otpt[computePad]='\0';
   strcat(otpt,output);
   strcpy(output,otpt);
-  // strncpy(output,padding,pad-(strlen(otpt)+1));
-  // strcat(output,otpt);
   return output;
 
 }
@@ -268,17 +271,11 @@ void extractTokenFromLine(char instr[], int lineNum)
   int flag=0;                                                                  //var used in filtering subr names
   while (token != NULL)
   {
-
-    // if(noOfTokens==0 && !(isTokenKeyword(token,noOfTokens)))
     if(isTokenLabel(token, noOfTokens))
     {
-      // printf("%s %d\n",token,lineNum);
       st.symbName[st.size] = (char *)malloc(sizeof(char)*MAX_INSTRUCTION_LENGTH);  // reserve space of len
       strcpy(st.symbName[st.size],token); // copy string
-      // strcpy(st.symbName[st.size],temp);
       st.symbAddr[st.size]=lineNum;
-      // printf("LABEL TOKEN:%s\n",token);
-      // printf("table contents: %s, %d",st.symbName[st.size],st.symbAddr[st.size]);
       st.size++;
 
     }
@@ -294,12 +291,10 @@ void extractTokenFromLine(char instr[], int lineNum)
         st.symbAddr[st.size]=lineNum;
         st.size++;
         flag=0;
-        // printf("SUBR TOKEN:%s\n",token);
       }
 
     }
     else
-      // printf ("%s\n",token);
     token = strtok (NULL, " :/,");
     noOfTokens++;
 
@@ -339,7 +334,6 @@ char *removeLabel(char instr[])
   char * token;                                                                //obtain tokens from each instr
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
-  // printf("instr before remvoval %s", instr);
   token = strtok (instrCopy," :/,");
   if(!isTokenKeyword(token))
   {
@@ -353,7 +347,6 @@ char *removeLabel(char instr[])
 
 int findInstrAddrType(char instr[])
 {
-  // printf("instr: %s\n", instr);
   char * token;                                                                //obtain tokens from each instr
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
@@ -417,7 +410,6 @@ void evaluateTypeZeroAddress(char instr[], FILE * inputFp)
   strcpy(instrCopy,instr);
 
   token = strtok (instrCopy," ");
-  // printf("evaluation: %s\n", token);
 
   int i;
   int arrayLength=sizeof(zeroAddrZero)/sizeof(zeroAddrZero[0]);
@@ -460,7 +452,6 @@ void evaluateOneAddrCISC(char instr[], FILE * inputFp)
 
   token = strtok (instrCopy," :/,");
   strcpy(ciscinstr,token);
-  // printf("hshs %s\n", ciscinstr);
 
   token = strtok (NULL," :/,");
   strcpy(operand,token);
@@ -470,16 +461,12 @@ void evaluateOneAddrCISC(char instr[], FILE * inputFp)
     midOp[0]='+';
   else if(strchr(operand,'*'))
     midOp[0]='*';
-  // printf("hshs %s\n", midOp);
 
   token = strtok (operand," :/,*+-");
   strcpy(operand1Var,token);
-  // printf("hshs %s\n", operand1Var);
 
   token = strtok (NULL," :/,*+-");
   strcpy(operand2Var,token);
-  // printf("hshs %s\n", operand2Var);
-
 
   char instr1[MAX_INSTRUCTION_LENGTH];
   strcat(instr1, "MOV EAX, ");
@@ -495,14 +482,9 @@ void evaluateOneAddrCISC(char instr[], FILE * inputFp)
   strcat(instr2, operand2Var);
 
   char instr3[MAX_INSTRUCTION_LENGTH];
-  // printf("instr3: %s\n", instr4);
-  // strcat(instr3,ciscinstr);
   strcat(instr3, " ");
   strcat(instr3, "EAX");
 
-
-  // printf("%s\n%s\n%s\n",instr1,instr2,instr3);
-  //
   convertLineToMachineCode(instr1, inputFp);
   convertLineToMachineCode(instr2, inputFp);
   convertLineToMachineCode(instr3, inputFp);
@@ -521,7 +503,6 @@ void evaluateTypeOneAddress(char instr[], FILE * inputFp)
   if(instrIsCISC(instr,1))
   {
     evaluateOneAddrCISC(instr,inputFp);
-    // fprintf(inputFp, "isnstr isCISC\n");
     return;
   }
 
@@ -573,7 +554,6 @@ void evaluateTypeOneAddress(char instr[], FILE * inputFp)
 
             arrayLength=sizeof(registers)/sizeof(registers[0]);
             for(i = 0; i < arrayLength ; i++) {
-              // printf("%s\n",token);
                 if (strcmp(registers[i], token) == 0) {
                     fprintf(inputFp, "%s",regAddr[i]);
                 }
@@ -606,11 +586,9 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
 
   token = strtok (instrCopy," :/,");
   strcpy(ciscinstr,token);
-  // printf("hshs %s\n", ciscinstr);
 
   token = strtok (NULL," :/,");
   strcpy(firstOp,token);
-  // printf("hshs %s\n", firstOp);
 
   token = strtok (NULL," :/,");
   strcpy(secondOp,token);
@@ -620,15 +598,12 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
     midOp[0]='+';
   else if(strchr(secondOp,'*'))
     midOp[0]='*';
-  // printf("hshs %s\n", midOp);
 
   token = strtok (secondOp," :/,*+-");
   strcpy(secondOp1Var,token);
-  // printf("hshs %s\n", secondOp1Var);
 
   token = strtok (NULL," :/,*+-");
   strcpy(secondOp2Var,token);
-  // printf("hshs %s\n", secondOp2Var);
 
 
   char instr1[MAX_INSTRUCTION_LENGTH];
@@ -645,14 +620,9 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
   strcat(instr2, secondOp2Var);
 
   char instr3[MAX_INSTRUCTION_LENGTH];
-  // printf("instr3: %s\n", instr4);
-  // strcat(instr3,ciscinstr);
   strcat(instr3, " ");
   strcat(instr3, firstOp);
   strcat(instr3, ", EAX");
-
-
-  // printf("%s\n%s\n%s\n",instr1,instr2,instr3);
 
   convertLineToMachineCode(instr1, inputFp);
   convertLineToMachineCode(instr2, inputFp);
@@ -673,14 +643,10 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
   if(instrIsCISC(instr,2))
   {
     evaluateTwoAddrCISC(instr,inputFp);
-    // fprintf(inputFp, "isnstr isCISC\n");
     return;
   }
 
-
   int subType=findAddrSubtype(instr,2);
-  // printf("subtype: %d\n",subType);
-
 
   switch(subType)
   {
@@ -719,7 +685,6 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
 
               token= strtok(NULL, " :/,");
               char * output;
-              // printf("gfsa\n");
               char otpt[MAX_INSTRUCTION_LENGTH];
               char addr[MAX_INSTRUCTION_LENGTH];
               strcpy(addr,token);
@@ -753,7 +718,6 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
 
               token= strtok(NULL, " :/,");
               char * output;
-              // printf("gfsa\n");
               char otpt[MAX_INSTRUCTION_LENGTH];
               char addr[MAX_INSTRUCTION_LENGTH];
               strcpy(addr,token);
@@ -783,7 +747,6 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
                   if (strcmp(registers[i], token) == 0) {
                       strcat(binaryInstr,regAddr[i]);
                       fprintf(inputFp, "%s",regAddr[i]);
-                      // fflush(stdout);
                   }
               }
 
@@ -797,7 +760,7 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
               }
             }
             break;
-    default:printf("NO!");
+    default:/*printf("NO!");*/
             break;
   }
 
@@ -807,11 +770,9 @@ void evaluateTypeTwoAddress(char instr[], FILE * inputFp)
 void convertLineToMachineCode(char instr[], FILE * inputFp)
 {
   instr=removeLabel(instr);
-  // printf("AFTER REMOVAL: %s\n",instr);
 
   int noOfAddress;
   noOfAddress=findInstrAddrType(instr);
-  // printf("addrtype for line  %d \n", noOfAddress);
   switch(noOfAddress)
   {
     case 0:evaluateTypeZeroAddress(instr, inputFp);
@@ -838,7 +799,6 @@ void secondPass(FILE * fp, FILE * inputFp)
   int lineNum=0;
 
   while ((read = getline(&line, &len, fp)) != -1) {
-    // printf("hgfshhh");
     char instr[MAX_INSTRUCTION_LENGTH];                                        //copy each line into a var
     strcpy(instr,line);                                                        //so that original is not changed
 
@@ -886,10 +846,8 @@ int main(int argc, char *argv[] )
       exit(EXIT_FAILURE);
 
 
-  // printf("%d, %s\n",st.symbAddr[0],st.symbName[0]);
 
   secondPass(fp2,inputFp);
-  // printf("sfdhghyhdj\n");
 
   fclose(inputFp);
   fclose(fp1);
