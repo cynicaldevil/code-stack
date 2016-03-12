@@ -144,18 +144,20 @@ const char * opcodeTwoAddrTwo[] = {
 };
 
 const char * twoAddrThree[] = {
-"MOV",               "MOD",
-"ADD",               "AND",
-"SUB",               "OR",
-"MUL",               "XOR",
-"DIV",               "CMP",
+"MOV",               "AND",
+"ADD",               "OR",
+"SUB",               "XOR",
+"MUL",               "CMP",                                                    //store and load using REG only
+"DIV",               "STA",
+"MOD",               "LDA",
 };
 const char * opcodeTwoAddrThree[] = {
-"1011000000000000",          "1011000000000101",
-"1011000000000001",          "1011000000000110",
-"1011000000000010",          "1011000000000111",
-"1011000000000011",          "1011000000001000",
-"1011000000000100",          "1011000000001001",
+"1011000000000000",          "1011000000000110",
+"1011000000000001",          "1011000000000111",
+"1011000000000010",          "1011000000001000",
+"1011000000000011",          "1011000000001001",
+"1011000000000100",          "1011000000001010",
+"1011000000000101",          "1011000000001011",
 };
 
 
@@ -382,9 +384,22 @@ int findAddrSubtype(char instr[], int noOfAddress)
     case 2:{
             token = strtok (instrCopy," :/,");
             if(strcmp("STA",token) == 0)
-              return 1;
+            {
+              token= strtok(NULL, " :/,");
+              if(isTokenReg(token))
+                return 3;
+              else
+                return 1;
+            }
             else if(strcmp("LDA",token) == 0)
-              return 2;
+            {
+              token= strtok(NULL, " :/,");
+              token= strtok(NULL, " :/,");
+              if(isTokenReg(token))
+                return 3;
+              else
+                return 2;
+            }
             else
             {
               token= strtok(NULL, " :/,");
@@ -590,8 +605,8 @@ void evaluateTwoAddrCISC(char instr[], FILE * inputFp)
   token = strtok (NULL," :/,");
   strcpy(firstOp,token);
 
-  token = strtok (NULL," :/,");
-  strcpy(secondOp,token);
+  token = strtok (NULL," :/,[]");                                              //square brackets are filtered out in case address
+  strcpy(secondOp,token);                                                      //is passed during LDA or STA instr
   if(strchr(secondOp,'-'))
     midOp[0]='-';
   else if(strchr(secondOp,'+'))
