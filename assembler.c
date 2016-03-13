@@ -579,7 +579,6 @@ void evaluateTypeOneAddress(char instr[], FILE * inputFp)
             break;
 
   }
-
   fprintf(inputFp, "\n");
 }
 
@@ -837,7 +836,7 @@ int main(int argc, char *argv[] )
     if ( argc != 3 )
     {
         /* We print argv[0] assuming it is the program name */
-        printf( "usage: gcc assembler.c -o binary\n./binr input.asm output.txt");
+        printf( "USAGE: gcc assembler.c -o binary\n./binary input.asm output.txt");
     }
 
 
