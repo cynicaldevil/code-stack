@@ -10,17 +10,6 @@ HLT
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 START
 MOV R00, [200]
 MOV R01, #0
@@ -35,3 +24,17 @@ DIV R00, #10
 CMP R00, #0
 JGT L2
 L1: HLT
+
+
+
+
+START
+MOV R00, #218
+STA [200], R00
+MOV R00, #372
+STA [201], R00
+LDA R01, [200]
+LDA R02, [201]
+ADD R02, R01
+INC R01
+HLT

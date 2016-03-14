@@ -9,6 +9,17 @@
 #define MAX_NO_OF_INSTRUCTIONS 40
 #define NO_OF_KEYWORDS 29
 #define NO_OF_REGISTERS 32                               //(25 + 7)
+#define REG_ADDR_LENGTH 8
+#define MEMORY_ADDR_LENGTH 12
+
+#define EAX_ADDR       25                   //register addresses for special registers
+#define STCKSGMNT_ADDR 26
+#define STCKPTR_ADDR   27
+#define FRAMEPTR_ADDR  28
+#define INSTRREG_ADDR  29
+#define PROGCTR_ADDR   30
+#define FLAGREG_ADDR   31
+
 
 int countInstructions(FILE *fp);
 char *reverseString(char output[]);
@@ -18,7 +29,12 @@ int power(int base, unsigned int exp);
 unsigned int binaryToInt(char instr[]);
 int *findType(char instr[]);
 void convertInstructions(FILE * fp);
+void executeInstructions();
+int evaluateZeroAddress(int line);
+int evaluateOneAddress(int line);
+int evaluateTwoAddress(int line);
 
+//Global variables
 typedef struct instruction
 {
   char binaryInstr[MAX_INSTRUCTION_LENGTH];
@@ -28,6 +44,8 @@ typedef struct instruction
 
 instruction * instrArray=NULL;
 int lines=0;
+
+int registers[NO_OF_REGISTERS]={0};
 
 int countInstructions(FILE *fp)
 {
@@ -124,21 +142,23 @@ int *findType(char instr[])
   int_mask= binaryToInt(mask);
   char output[MAX_INSTRUCTION_LENGTH];
   strcpy(output,intToBinary(int_instr & int_mask,32));
-  unsigned int temp=int_instr & int_mask;
-  // printf("unsigned string :%s\n", output);
-  type[0]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
+  // type[0]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
   if     (strcmp("00000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[0]=0;
   else if(strcmp("01000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[0]=1;
   else if(strcmp("10000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[0]=2;
+  else
+  {
+    fprintf(stderr, "ERROR: INVALID BINARY INSTRUCTION OF FAULTY TYPE!\n");
+    exit(EXIT_FAILURE);
+  }
 
   strcpy(mask,"00110000000000000000000000000000");
   int_mask= binaryToInt(mask);
 
-
-  type[1]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
+  // type[1]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
   if     (strcmp("00000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[1]=0;
   else if(strcmp("00010000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
@@ -147,17 +167,18 @@ int *findType(char instr[])
     type[1]=2;
   else if(strcmp("00110000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[1]=3;
+  else
+  {
+    fprintf(stderr, "ERROR: INVALID BINARY INSTRUCTION OF FAULTY TYPE!\n");
+    exit(EXIT_FAILURE);
+  }
 
   return type;
-
-  return 0;
 }
 
 void convertInstructions(FILE * fp)
 {
   instrArray=(instruction *)calloc(lines, sizeof(instruction));
-  strcpy(instrArray[3].binaryInstr,"4455");
-  strcpy(instrArray[50].binaryInstr,"4fgdsg 455");
 
   char * line = NULL;
   size_t len = 0;
@@ -176,14 +197,211 @@ void convertInstructions(FILE * fp)
     int * typeArr=findType(instr);
     instrArray[lineNum].type=typeArr[0];
     instrArray[lineNum].subType=typeArr[1];
-    printf("%d %d",instrArray[lineNum].type,instrArray[lineNum].subType);
-    printf("ASD %s\n", instrArray[lineNum].binaryInstr);
+    // printf("%d %d",instrArray[lineNum].type,instrArray[lineNum].subType);
+    // printf("ASD %s\n", instrArray[lineNum].binaryInstr);
 
     lineNum++;
   }
 
   if (line)
       free(line);
+}
+
+int isInstrHalt(char instr[])
+{
+  // printf("string:%s\n",instr);
+  if(strcmp(instr,"00000000000000000000000000000010")==0)
+    return 1;
+  else
+    return 0;
+}
+
+int isInstrStart(char instr[])
+{
+  if(strcmp(instr,"00000000000000000000000000000000")==0)
+    return 1;
+  else
+    return 0;
+}
+
+int evaluateZeroAddress(int line)
+{
+  return ++line;
+}
+
+int evalINR(int line, int reg)
+{
+  registers[reg]+=1;
+  return ++line;
+}
+
+int evalDEC(int line, int reg)
+{
+  registers[reg]-=1;
+  return ++line;
+}
+
+int evalNOT(int line, int reg)
+{
+  registers[reg]=~registers[reg];
+  return ++line;
+}
+
+int evalPUSH(int line, int opr)                                                //handles both 0 and 1 subTypes
+{
+  printf("PUSH INSTR!\n");
+  return ++line;
+}
+
+int evalPOP(int line, int reg)
+{
+  printf("POP INSTR!\n");
+  return ++line;
+}
+
+int evalJZE(int line, int lineAddr)
+{
+  unsigned int zero_mask=1;                                                    //zero flag is the first bit in flag reg,
+  unsigned int res= zero_mask & registers[FLAGREG_ADDR];                       //so masking it with one to get its value
+  if(res==1)
+    return lineAddr;
+  else
+    return ++line;
+
+}
+
+int evalJNE(int line, int lineAddr)
+{
+  unsigned int zero_mask=1;
+  unsigned int res= zero_mask & registers[FLAGREG_ADDR];
+  if(res==0)                                                                   //opposite of what we did in JZE
+    return lineAddr;
+  else
+    return ++line;
+}
+
+int evalJumpInstr(int line, int lineAddr)                                      //handles JMP, CALL, RET instructions
+{                                                                              //all have same functioanlity but different names
+
+  return lineAddr;
+}
+
+int evalJGT(int line, int lineAddr)
+{
+  unsigned int zero_mask=3;                                                    //we want to check content of zero and sign flag
+  unsigned int res= zero_mask & registers[FLAGREG_ADDR];                       //so we mask with first two bits as 1(3)
+  if(res==0)                                                                   //both sign and zero flag should be zero
+    return lineAddr;
+  else
+    return ++line;
+}
+
+int evalJLT(int line, int lineAddr)
+{
+  unsigned int zero_mask=3;                                                    //we want to check content of zero and sign flag
+  unsigned int res= zero_mask & registers[FLAGREG_ADDR];                       //so we mask with first two bits as 1(3)
+  if(res==2)                                                                   //sign flag should be one, zero flag should be zero
+    return lineAddr;
+  else
+    return ++line;
+}
+
+int evalSUBR(int line, int lineAddr)
+{
+  return ++line;
+}
+
+
+int evaluateOneAddress(int line)
+{
+  unsigned int int_instr=binaryToInt(instrArray[line].binaryInstr);
+  char mask    [BINARY_INSTR_LENGTH+1];
+  char opr_mask[BINARY_INSTR_LENGTH+1];
+  unsigned int int_mask;
+  unsigned int int_opr_mask;
+
+  // printf("ghjkl %d\n",instrArray[line].subType);
+  switch(instrArray[line].subType)
+  {
+    case 0: strcpy(mask,    "11111111111111111111000000000000");               //mask for address
+            int_mask=      binaryToInt(mask);
+            strcpy(opr_mask,"00000000000000000000111111111111");               //mask for operator
+            int_opr_mask= binaryToInt(opr_mask);
+            if      (strcmp("01000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJZE(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000001000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJNE(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000010000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJumpInstr(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000011000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJumpInstr(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000100000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalSUBR(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000101000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalPUSH(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000110000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJumpInstr(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000000111000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJGT(line,int_opr_mask & int_instr);
+            else if (strcmp("01000000000000001000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalJLT(line,int_opr_mask & int_instr);
+            break;
+
+    case 1: strcpy(mask,    "11111111111111111111111100000000");               //mask for address
+            int_mask=      binaryToInt(mask);
+            strcpy(opr_mask,"00000000000000000000000011111111");               //mask for operator
+            int_opr_mask= binaryToInt(opr_mask);
+            if     (strcmp("01010000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalINR(line,int_opr_mask & int_instr);
+            else if(strcmp("01010000000000000000000100000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalDEC(line,int_opr_mask & int_instr);
+            else if(strcmp("01010000000000000000001000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalNOT(line,int_opr_mask & int_instr);
+            else if(strcmp("01010000000000000000001100000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalPUSH(line,int_opr_mask & int_instr);
+            else if(strcmp("01010000000000000000010000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalPOP(line,int_opr_mask & int_instr);
+            break;
+  }
+  return line;
+}
+
+int evaluateTwoAddress(int line)
+{
+  return 0;
+}
+
+void executeInstructions()
+{
+  int currLine=0;
+  while(isInstrStart(instrArray[currLine].binaryInstr)==0)                   //always start at START instruction
+    currLine++;
+  if(currLine>lines)
+  {
+    fprintf(stderr,"ERROR: NO START STATEMENT FOUND!\n");
+    exit(EXIT_FAILURE);
+  }
+  // printf("%d\n",currLine);
+  // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
+  while(isInstrHalt(instrArray[currLine].binaryInstr)==0 && currLine<lines)
+  {
+    // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
+    // printf("int in while: %d\n",currLine);
+    // if(currLine==10)
+    //   break;
+    switch(instrArray[currLine].type)                                        //each instr returns the line address of next instr
+    {
+      case 0:currLine=evaluateZeroAddress(currLine);
+            // printf("%d",currLine);
+             break;
+
+      case 1:currLine=evaluateOneAddress(currLine);
+             break;
+
+      case 2:currLine=evaluateTwoAddress(currLine);
+            break;
+    }
+  }
 }
 
 int main()
@@ -199,5 +417,14 @@ int main()
 
   convertInstructions(fp1);                                                    //each instraction is converted to a
   fclose(fp1);                                                                 //struct object; easier to handle
+
+  executeInstructions();
+  int i;
+  for(i=0;i<32;i++)
+  {
+    if(i%8==0)
+      printf("\n");
+    printf("REG %d:%d      ",i,registers[i]);
+  }
   return 0;
 }
