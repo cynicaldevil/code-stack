@@ -323,9 +323,9 @@ int evaluateOneAddress(int line)
   // printf("ghjkl %d\n",instrArray[line].subType);
   switch(instrArray[line].subType)
   {
-    case 0: strcpy(mask,    "11111111111111111111000000000000");               //mask for address
+    case 0: strcpy(mask,    "11111111111111111111000000000000");               //mask for instruction
             int_mask=      binaryToInt(mask);
-            strcpy(opr_mask,"00000000000000000000111111111111");               //mask for operator
+            strcpy(opr_mask,"00000000000000000000111111111111");               //mask for operand
             int_opr_mask= binaryToInt(opr_mask);
             if      (strcmp("01000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalJZE(line,int_opr_mask & int_instr);
@@ -347,9 +347,9 @@ int evaluateOneAddress(int line)
               line=evalJLT(line,int_opr_mask & int_instr);
             break;
 
-    case 1: strcpy(mask,    "11111111111111111111111100000000");               //mask for address
+    case 1: strcpy(mask,    "11111111111111111111111100000000");               //mask for instruction
             int_mask=      binaryToInt(mask);
-            strcpy(opr_mask,"00000000000000000000000011111111");               //mask for operator
+            strcpy(opr_mask,"00000000000000000000000011111111");               //mask for operand
             int_opr_mask= binaryToInt(opr_mask);
             if     (strcmp("01010000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalINR(line,int_opr_mask & int_instr);
@@ -366,9 +366,135 @@ int evaluateOneAddress(int line)
   return line;
 }
 
+int evalMOV(int line,int opr1,int opr2)
+{
+  registers[opr1]=opr2;
+  return ++line;
+}
+
+int evalADD(int line,int opr1,int opr2)
+{
+  registers[opr1]+=opr2;
+  return ++line;
+}
+
+int evalSUB(int line,int opr1,int opr2)
+{
+  registers[opr1]-=opr2;
+  return ++line;
+}
+
+int evalMUL(int line,int opr1,int opr2)
+{
+  registers[opr1]*=opr2;
+  return ++line;
+}
+
+int evalDIV(int line,int opr1,int opr2)
+{
+  registers[opr1]/=opr2;
+  return ++line;
+}
+
+int evalMOD(int line,int opr1,int opr2)
+{
+  registers[opr1]%=opr2;
+  return ++line;
+}
+
+int evalAND(int line,int opr1,int opr2)
+{
+  registers[opr1]&=opr2;
+  return ++line;
+}
+
+int evalOR(int line,int opr1,int opr2)
+{
+  registers[opr1]|=opr2;
+  return ++line;
+}
+
+int evalXOR(int line,int opr1,int opr2)
+{
+  registers[opr1]^=opr2;
+  return ++line;
+}
+
+int evalCMP(int line,int opr1,int opr2)
+{
+  char mask1[BINARY_INSTR_LENGTH+1];
+  char mask2[BINARY_INSTR_LENGTH+1];
+  unsigned int temp;
+  unsigned int int_mask1;
+  unsigned int int_mask2;
+  strcpy(mask1,"11111111111111111111111111111100");
+  int_mask1=binaryToInt(mask1);
+  temp=registers[FLAGREG_ADDR] & int_mask1;
+  if(registers[opr1]==opr2)
+    strcpy(mask2,"00000000000000000000000000000001");
+  else if(registers[opr1] > opr2)
+    strcpy(mask2,"00000000000000000000000000000000");
+  else if(registers[opr1] < opr2)
+    strcpy(mask2,"00000000000000000000000000000010");
+  int_mask2=binaryToInt(mask2);
+  temp=registers[FLAGREG_ADDR] | int_mask2;
+  registers[FLAGREG_ADDR]=temp;
+  return ++line;
+}
+
 int evaluateTwoAddress(int line)
 {
-  return 0;
+  unsigned int int_instr=binaryToInt(instrArray[line].binaryInstr);
+  char mask     [BINARY_INSTR_LENGTH+1];
+  char opr1_mask[BINARY_INSTR_LENGTH+1];
+  char opr2_mask[BINARY_INSTR_LENGTH+1];
+  unsigned int int_mask;
+  unsigned int int_opr1_mask;
+  unsigned int int_opr2_mask;
+
+  // printf("ghjkl %d\n",instrArray[line].subType);
+  switch(instrArray[line].subType)
+  {
+    case 0: strcpy(mask,     "11111111000000000000000000000000");               //mask for instruction
+            int_mask=      binaryToInt(mask);
+            strcpy(opr1_mask,"00000000111111110000000000000000");               //mask for first operand
+            int_opr1_mask= binaryToInt(opr1_mask);
+            strcpy(opr2_mask,"00000000000000001111111111111111");               //mask for first operand
+            int_opr2_mask= binaryToInt(opr2_mask);
+
+            if      (strcmp("10000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalMOV(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000001000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalADD(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000010000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalSUB(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000011000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalMUL(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000100000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalDIV(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000101000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalMOD(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000110000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalAND(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10000111000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalOR(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10001000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalXOR(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            else if (strcmp("10001001000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
+              line=evalCMP(line,(int_opr1_mask & int_instr)/65536,int_opr2_mask & int_instr);
+            break;
+
+    case 1: printf("not done yet!\n");
+            break;
+
+    case 2:printf("not done yet!\n");
+            break;
+
+    case 3:printf("not done yet!\n");
+            break;
+  }
+
+  return line;
 }
 
 void executeInstructions()
@@ -381,7 +507,7 @@ void executeInstructions()
     fprintf(stderr,"ERROR: NO START STATEMENT FOUND!\n");
     exit(EXIT_FAILURE);
   }
-  // printf("%d\n",currLine);
+  // printf("cuurline %d\n",currLine);
   // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
   while(isInstrHalt(instrArray[currLine].binaryInstr)==0 && currLine<lines)
   {
