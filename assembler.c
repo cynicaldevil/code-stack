@@ -68,12 +68,14 @@ const char * regAddr[]={
 const char * zeroAddrZero[] = {
 "START",
 "END",
-"HLT"
+"HLT",
+"RET"
 };
 const char * opcodeZeroAddrZero[] = {
 "00000000000000000000000000000000",
 "00000000000000000000000000000001",
-"00000000000000000000000000000010"
+"00000000000000000000000000000010",
+"00000000000000000000000000000011"
 };
 
 const char * oneAddrZero[] = {
@@ -289,7 +291,8 @@ void extractTokenFromLine(char instr[], int lineNum)
       }
       else if(flag==1)
       {
-        st.symbName[st.size]=token;
+        st.symbName[st.size] = (char *)malloc(sizeof(char)*MAX_INSTRUCTION_LENGTH);
+        strcpy(st.symbName[st.size],token);
         st.symbAddr[st.size]=lineNum;
         st.size++;
         flag=0;
@@ -429,6 +432,7 @@ void evaluateTypeZeroAddress(char instr[], FILE * inputFp)
   int i;
   int arrayLength=sizeof(zeroAddrZero)/sizeof(zeroAddrZero[0]);
   for(i = 0; i < arrayLength ; i++) {
+    // printf("%s %s\n",zeroAddrZero[i], token );
       if (strcmp(zeroAddrZero[i], token) == 0) {
           fprintf(inputFp, "%s\n", opcodeZeroAddrZero[i]);
       }
@@ -438,6 +442,9 @@ void evaluateTypeZeroAddress(char instr[], FILE * inputFp)
 
 int instrIsCISC(char instr[],int noOfAddr)
 {
+  if(noOfAddr==0)
+    return 0;
+  // printf("instr:%s addr:%d\n",instr,noOfAddr);
   char * token;
   char instrCopy[MAX_INSTRUCTION_LENGTH];
   strcpy(instrCopy,instr);
@@ -468,7 +475,7 @@ void evaluateOneAddrCISC(char instr[], FILE * inputFp)
   token = strtok (instrCopy," :/,");
   strcpy(ciscinstr,token);
 
-  token = strtok (NULL," :/,");
+  token = strtok (NULL," :/,[]");                                  //filter out addresses
   strcpy(operand,token);
   if(strchr(operand,'-'))
     midOp[0]='-';
@@ -830,6 +837,62 @@ void secondPass(FILE * fp, FILE * inputFp)
 }
 
 /*^^^^^^^^^^^^^^secondpass functions^^^^^^^^^^^^^^^*/
+/****************intermediate pass function*********/
+void intermediatePass(FILE *fp)
+{
+  char * line = NULL;
+  size_t len = 0;
+  ssize_t read;
+  int lineNum=0;
+
+  int offset[MAX_INSTRUCTION_LENGTH]={0};
+  int i;
+
+  while ((read = getline(&line, &len, fp)) != -1) {
+
+    char instr[MAX_INSTRUCTION_LENGTH];                                        //copy each line into a var
+    strcpy(instr,line);                                                        //so that original is not changed
+
+    char *newLine;                                                             //removes newline from
+    if ((newLine=strchr(instr, '\n')) != NULL)                                 //the instruction statment
+      *newLine = '\0';                                                         //
+
+      char * temp_instr=(char *)malloc(sizeof(char) * MAX_INSTRUCTION_LENGTH);
+      temp_instr=removeLabel(instr);
+
+
+      int noOfAddress;
+      noOfAddress=findInstrAddrType(temp_instr);
+
+      // printf("instr:%s addr:%d\n",temp_instr,noOfAddress);
+      if(instrIsCISC(temp_instr,noOfAddress)==1)
+      {
+
+        for(i=0;i<st.size;i++)
+        {
+          if(st.symbAddr[i]>lineNum)
+          {
+            offset[i]+=2;
+            // st.symbAddr[i]+=2;
+          }
+        }
+      }
+      // printf("gfdhsh\n");
+    lineNum++;
+
+  }
+
+  for(i=0;i<st.size;i++)
+  {
+      st.symbAddr[i]+=offset[i];
+  }
+
+
+  if (line)
+      free(line);
+
+}
+/*^^^^^^^^^^^^^^^^intermediate pass function*************/
 
 int main(int argc, char *argv[] )
 {
@@ -841,6 +904,7 @@ int main(int argc, char *argv[] )
 
 
   FILE * fp1;
+  FILE * intrfp;
   FILE * fp2;
 
   FILE * inputFp;
@@ -855,17 +919,29 @@ int main(int argc, char *argv[] )
 
   firstPass(fp1);
 
-  fp2 = fopen("file2.asm", "r");
+  intrfp = fopen(argv[1], "r");
+  if (intrfp == NULL)
+      exit(EXIT_FAILURE);
+
+  intermediatePass(intrfp);
+
+  fp2 = fopen(argv[1], "r");
   if (fp2 == NULL)
       exit(EXIT_FAILURE);
 
-
-
   secondPass(fp2,inputFp);
+
+  int i;
+  printf("contents of symbol table:\n");
+  for(i=0;i<st.size;i++)
+  {
+    printf("name:%s addr: %d\n",st.symbName[i], st.symbAddr[i]);
+  }
 
   fclose(inputFp);
   fclose(fp1);
   fclose(fp2);
+  fclose(intrfp);
 
 
 

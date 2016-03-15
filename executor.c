@@ -43,11 +43,12 @@ typedef struct instruction
   int subType;
 } instruction;
 
-instruction * instrArray=NULL;
-int lines=0;
+//holds all the instructions
+instruction * instrArray;
+int lines;
 
-int registers[NO_OF_REGISTERS]={0};
-int memory[TOTAL_MEMORY_ADDR]={0};
+int registers[NO_OF_REGISTERS];
+int memory[TOTAL_MEMORY_ADDR];
 
 int countInstructions(FILE *fp)
 {
@@ -226,9 +227,29 @@ int isInstrStart(char instr[])
     return 0;
 }
 
+int evalRETZeroAddr(int line)
+{
+  printf("before:at line %d contentSP: %d\n",registers[STCKPTR_ADDR]-1,memory[ registers[STCKPTR_ADDR ] -1 ]);
+                                                                               //shifts stack pointer to current location of
+                                                                              //frame pointer and shifts frame pointer to location
+    line= memory[ registers[STCKPTR_ADDR ] -1 ];                              //of old frame pointer, function returns return address
+    registers[EAX_ADDR]=registers[STCKPTR_ADDR];                              //stored in stack frame
+    registers[STCKPTR_ADDR]=registers[FRAMEPTR_ADDR];
+    registers[FRAMEPTR_ADDR]=memory[registers[EAX_ADDR] - 2];
+    // printf("framptr: %d")
+    printf("lineret: %d\n",line+1);
+    return ++line;
+}
+
 int evaluateZeroAddress(int line)
 {
-  return ++line;
+  printf("%s\n",instrArray[line].binaryInstr);
+  if(strcmp(instrArray[line].binaryInstr,"00000000000000000000000000000011")==0)
+    line=evalRETZeroAddr(line);
+  else
+    ++line;
+  printf("line:%d\n" ,line);
+    return line;
 }
 
 int evalINR(int line, int reg)
@@ -249,15 +270,17 @@ int evalNOT(int line, int reg)
   return ++line;
 }
 
-int evalPUSH(int line, int opr)                                                //handles both 0 and 1 subTypes
+int evalPUSH(int line, int opr)                                                //handles both 0 and 1 subtypes
 {
-  printf("PUSH INSTR!\n");
+  memory[ registers[STCKPTR_ADDR] ]= registers[opr];
+  registers[STCKPTR_ADDR]++;
   return ++line;
 }
 
 int evalPOP(int line, int reg)
 {
-  printf("POP INSTR!\n");
+  registers[reg]= memory[ registers[STCKPTR_ADDR ] -1];
+  registers[STCKPTR_ADDR]--;
   return ++line;
 }
 
@@ -282,9 +305,32 @@ int evalJNE(int line, int lineAddr)
     return ++line;
 }
 
-int evalJumpInstr(int line, int lineAddr)                                      //handles JMP, CALL, RET instructions
-{                                                                              //all have same functioanlity but different names
+int evalJMP(int line, int lineAddr)
+{
+  return lineAddr;
+}
 
+int evalCALL(int line, int lineAddr)                                           //does two things:pushes address in frame pointer
+{                                                                              //and pushes return address to stack
+  memory[ registers[STCKPTR_ADDR] ]= registers[FRAMEPTR_ADDR];
+  printf("at line %d content at tos: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]]);
+  registers[STCKPTR_ADDR]++;
+  memory[ registers[STCKPTR_ADDR] ]= line;
+  printf("at line %d content at tos: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]]);
+  printf("at line %d arg1: %d arg2: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]-2],memory[ registers[STCKPTR_ADDR]-3]);
+  registers[STCKPTR_ADDR]++;
+  return lineAddr;
+
+}
+
+int evalRET(int line, int lineAddr)                                            //shifts stack pointer to current location of
+{                                                                              //frame pointer and shifts frame pointer to location
+  // line= memory[ registers[STCKPTR_ADDR -1 ] ];                              //of old frame pointer
+  registers[EAX_ADDR]=registers[STCKPTR_ADDR];
+  registers[STCKPTR_ADDR]=registers[FRAMEPTR_ADDR];
+  registers[FRAMEPTR_ADDR]=registers[STCKPTR_ADDR] - 2;
+  fprintf(stderr,"ONE ADDRESS RET SHOULD NOT BE USED");
+  exit(EXIT_FAILURE);
   return lineAddr;
 }
 
@@ -334,15 +380,15 @@ int evaluateOneAddress(int line)
             else if (strcmp("01000000000000000001000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalJNE(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000010000000000000",intToBinary(int_instr & int_mask,32))==0)
-              line=evalJumpInstr(line,int_opr_mask & int_instr);
+              line=evalJMP(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000011000000000000",intToBinary(int_instr & int_mask,32))==0)
-              line=evalJumpInstr(line,int_opr_mask & int_instr);
+              line=evalCALL(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000100000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalSUBR(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000101000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalPUSH(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000110000000000000",intToBinary(int_instr & int_mask,32))==0)
-              line=evalJumpInstr(line,int_opr_mask & int_instr);
+              line=evalRET(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000000111000000000000",intToBinary(int_instr & int_mask,32))==0)
               line=evalJGT(line,int_opr_mask & int_instr);
             else if (strcmp("01000000000000001000000000000000",intToBinary(int_instr & int_mask,32))==0)
@@ -439,10 +485,14 @@ int evalMOD(int line,int opr1,int opr2)
 {
   switch(instrArray[line].subType)
   {
-    case 0: registers[opr1]%=opr2;
+    case 0: printf("MOD:%d %d\n",registers[opr1],opr2);
+            registers[opr1]%=opr2;
             break;
 
-    case 3: registers[opr1]%=registers[opr2];
+    case 3: printf("MOD:%d %d\n",registers[opr1],registers[opr2]);
+            printf("%d %d\n",memory[registers[FRAMEPTR_ADDR] + 1],registers[STCKPTR_ADDR]);
+            registers[opr1]%=registers[opr2];
+
             break;
   }
   return ++line;
@@ -520,7 +570,7 @@ int evalCMP(int line,int opr1,int opr2)
 
 int evalSTA(int line, int opr1, int opr2)
 {
-  // printf("integers: %d %d %d\n",opr1,opr2,instrArray[line].subType);
+  printf("integers: %d %d %d\n",opr1,opr2,instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 1: memory[opr1]=registers[opr2];
@@ -534,15 +584,15 @@ int evalSTA(int line, int opr1, int opr2)
 
 int evalLDA(int line, int opr1,int opr2)
 {
+  printf("subtype: %d\n", instrArray[line].subType);
   switch(instrArray[line].subType)
   {
-    case 1: registers[opr1]=memory[opr2];
+    case 2: registers[opr1]=memory[opr2];
             break;
 
-    case 3: registers[opr2] = memory[ registers[opr2] ];
+    case 3: registers[opr1] = memory[ registers[opr2] ];
             break;
   }
-  registers[opr1]=memory[opr2];
   return ++line;
 }
 
@@ -657,8 +707,9 @@ void executeInstructions()
   // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
   while(isInstrHalt(instrArray[currLine].binaryInstr)==0 && currLine<lines)
   {
-    // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
-    // printf("int in while: %d\n",currLine);
+
+    printf("int in while: %d\n",currLine);
+    printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
     // if(currLine==10)
     //   break;
     switch(instrArray[currLine].type)                                        //each instr returns the line address of next instr
@@ -676,15 +727,35 @@ void executeInstructions()
   }
 }
 
+void resetCPU()
+{
+  instrArray=NULL;
+  lines=0;
+  int size_reg_array=sizeof(registers)/sizeof(int);
+  int size_mem_array=sizeof(memory)/sizeof(int);
+  int i;
+  for(i=0;i<size_reg_array;i++)
+  {
+    registers[i]=0;
+  }
+  for(i=0;i<size_mem_array;i++)
+  {
+    memory[i]=0;
+  }
+  registers[STCKSGMNT_ADDR]=0;
+  registers[STCKPTR_ADDR]=registers[STCKSGMNT_ADDR]+1;
+  registers[FRAMEPTR_ADDR]=0;
+}
+
 int main()
 {
+  resetCPU();
   FILE * fp1;
   fp1 = fopen("output.txt", "r");
   if (fp1 == NULL)
     exit(EXIT_FAILURE);
 
   lines = countInstructions(fp1);
-  // printf("%d", lines);
   fp1 = fopen("output.txt", "r");
 
   convertInstructions(fp1);                                                    //each instraction is converted to a
@@ -698,6 +769,12 @@ int main()
       printf("\n");
     printf("REG %d:%d      ",i,registers[i]);
   }
-  // printf("%d %d\n",memory[200],memory[201]);
+  printf("NONEMPTY MEMORY:\n");
+  for(i=0;i<TOTAL_MEMORY_ADDR;i++)
+  {
+    if(memory[i]!=0)
+      printf("content at %d: %d\n",i,memory[i]);
+  }
+
   return 0;
 }
