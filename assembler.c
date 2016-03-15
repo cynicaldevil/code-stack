@@ -943,6 +943,4 @@ int main(int argc, char *argv[] )
   fclose(fp2);
   fclose(intrfp);
 
-
-
 }

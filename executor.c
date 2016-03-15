@@ -95,7 +95,6 @@ char *padStringWithZeroes(char output[],int pad)
 }
 
 char* intToBinary(unsigned int value,int pad) {
-  // printf("value : %u",value);
   int pos = 0;
   char * otpt=(char *)malloc(sizeof(char) * MAX_INSTRUCTION_LENGTH+1);
   char output[MAX_INSTRUCTION_LENGTH+1];
@@ -105,7 +104,6 @@ char* intToBinary(unsigned int value,int pad) {
     value >>= 1;
   }
   output[pos] = 0;
-  // printf("output:%s pad:%d\n",output, pad);
   char * newStr;
   newStr=reverseString(output);
   strcpy(output,newStr);
@@ -145,7 +143,6 @@ int *findType(char instr[])
   int_mask= binaryToInt(mask);
   char output[MAX_INSTRUCTION_LENGTH];
   strcpy(output,intToBinary(int_instr & int_mask,32));
-  // type[0]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
   if     (strcmp("00000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[0]=0;
   else if(strcmp("01000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
@@ -161,7 +158,6 @@ int *findType(char instr[])
   strcpy(mask,"00110000000000000000000000000000");
   int_mask= binaryToInt(mask);
 
-  // type[1]=binaryToInt(reverseString(intToBinary(int_instr & int_mask,32)));
   if     (strcmp("00000000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
     type[1]=0;
   else if(strcmp("00010000000000000000000000000000",intToBinary(int_instr & int_mask,32))==0)
@@ -200,8 +196,6 @@ void convertInstructions(FILE * fp)
     int * typeArr=findType(instr);
     instrArray[lineNum].type=typeArr[0];
     instrArray[lineNum].subType=typeArr[1];
-    // printf("%d %d",instrArray[lineNum].type,instrArray[lineNum].subType);
-    // printf("ASD %s\n", instrArray[lineNum].binaryInstr);
 
     lineNum++;
   }
@@ -212,7 +206,6 @@ void convertInstructions(FILE * fp)
 
 int isInstrHalt(char instr[])
 {
-  // printf("string:%s\n",instr);
   if(strcmp(instr,"00000000000000000000000000000010")==0)
     return 1;
   else
@@ -229,26 +222,21 @@ int isInstrStart(char instr[])
 
 int evalRETZeroAddr(int line)
 {
-  printf("before:at line %d contentSP: %d\n",registers[STCKPTR_ADDR]-1,memory[ registers[STCKPTR_ADDR ] -1 ]);
                                                                                //shifts stack pointer to current location of
                                                                               //frame pointer and shifts frame pointer to location
     line= memory[ registers[STCKPTR_ADDR ] -1 ];                              //of old frame pointer, function returns return address
     registers[EAX_ADDR]=registers[STCKPTR_ADDR];                              //stored in stack frame
     registers[STCKPTR_ADDR]=registers[FRAMEPTR_ADDR];
     registers[FRAMEPTR_ADDR]=memory[registers[EAX_ADDR] - 2];
-    // printf("framptr: %d")
-    printf("lineret: %d\n",line+1);
     return ++line;
 }
 
 int evaluateZeroAddress(int line)
 {
-  printf("%s\n",instrArray[line].binaryInstr);
   if(strcmp(instrArray[line].binaryInstr,"00000000000000000000000000000011")==0)
     line=evalRETZeroAddr(line);
   else
     ++line;
-  printf("line:%d\n" ,line);
     return line;
 }
 
@@ -313,11 +301,8 @@ int evalJMP(int line, int lineAddr)
 int evalCALL(int line, int lineAddr)                                           //does two things:pushes address in frame pointer
 {                                                                              //and pushes return address to stack
   memory[ registers[STCKPTR_ADDR] ]= registers[FRAMEPTR_ADDR];
-  printf("at line %d content at tos: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]]);
   registers[STCKPTR_ADDR]++;
   memory[ registers[STCKPTR_ADDR] ]= line;
-  printf("at line %d content at tos: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]]);
-  printf("at line %d arg1: %d arg2: %d\n",registers[STCKPTR_ADDR],memory[ registers[STCKPTR_ADDR]-2],memory[ registers[STCKPTR_ADDR]-3]);
   registers[STCKPTR_ADDR]++;
   return lineAddr;
 
@@ -325,7 +310,7 @@ int evalCALL(int line, int lineAddr)                                           /
 
 int evalRET(int line, int lineAddr)                                            //shifts stack pointer to current location of
 {                                                                              //frame pointer and shifts frame pointer to location
-  // line= memory[ registers[STCKPTR_ADDR -1 ] ];                              //of old frame pointer
+                                                                               //of old frame pointer
   registers[EAX_ADDR]=registers[STCKPTR_ADDR];
   registers[STCKPTR_ADDR]=registers[FRAMEPTR_ADDR];
   registers[FRAMEPTR_ADDR]=registers[STCKPTR_ADDR] - 2;
@@ -368,7 +353,6 @@ int evaluateOneAddress(int line)
   unsigned int int_mask;
   unsigned int int_opr_mask;
 
-  // printf("ghjkl %d\n",instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 0: strcpy(mask,    "11111111111111111111000000000000");               //mask for instruction
@@ -416,7 +400,6 @@ int evaluateOneAddress(int line)
 
 int evalMOV(int line,int opr1,int opr2)
 {
-  // printf("subtype:%d\n",instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 0: registers[opr1]=opr2;
@@ -485,13 +468,10 @@ int evalMOD(int line,int opr1,int opr2)
 {
   switch(instrArray[line].subType)
   {
-    case 0: printf("MOD:%d %d\n",registers[opr1],opr2);
-            registers[opr1]%=opr2;
+    case 0: registers[opr1]%=opr2;
             break;
 
-    case 3: printf("MOD:%d %d\n",registers[opr1],registers[opr2]);
-            printf("%d %d\n",memory[registers[FRAMEPTR_ADDR] + 1],registers[STCKPTR_ADDR]);
-            registers[opr1]%=registers[opr2];
+    case 3: registers[opr1]%=registers[opr2];
 
             break;
   }
@@ -570,7 +550,6 @@ int evalCMP(int line,int opr1,int opr2)
 
 int evalSTA(int line, int opr1, int opr2)
 {
-  printf("integers: %d %d %d\n",opr1,opr2,instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 1: memory[opr1]=registers[opr2];
@@ -584,7 +563,6 @@ int evalSTA(int line, int opr1, int opr2)
 
 int evalLDA(int line, int opr1,int opr2)
 {
-  printf("subtype: %d\n", instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 2: registers[opr1]=memory[opr2];
@@ -606,7 +584,6 @@ int evaluateTwoAddress(int line)
   unsigned int int_opr1_mask;
   unsigned int int_opr2_mask;
 
-  // printf("ghjkl %d\n",instrArray[line].subType);
   switch(instrArray[line].subType)
   {
     case 0: strcpy(mask,     "11111111000000000000000000000000");               //mask for instruction
@@ -703,19 +680,12 @@ void executeInstructions()
     fprintf(stderr,"ERROR: NO START STATEMENT FOUND!\n");
     exit(EXIT_FAILURE);
   }
-  // printf("cuurline %d\n",currLine);
-  // printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
   while(isInstrHalt(instrArray[currLine].binaryInstr)==0 && currLine<lines)
   {
 
-    printf("int in while: %d\n",currLine);
-    printf("qqqqqq%s\n",instrArray[currLine].binaryInstr);
-    // if(currLine==10)
-    //   break;
     switch(instrArray[currLine].type)                                        //each instr returns the line address of next instr
     {
       case 0:currLine=evaluateZeroAddress(currLine);
-            // printf("%d",currLine);
              break;
 
       case 1:currLine=evaluateOneAddress(currLine);
