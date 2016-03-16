@@ -522,7 +522,7 @@ int evalCMP(int line,int opr1,int opr2)
   int case_opr2;
   switch(instrArray[line].subType)
   {
-    case 0:  case_opr2=opr2;;
+    case 0:  case_opr2=opr2;
             break;
 
     case 3:  case_opr2=registers[opr2];
@@ -543,7 +543,7 @@ int evalCMP(int line,int opr1,int opr2)
   else if(registers[opr1] < case_opr2)
     strcpy(mask2,"00000000000000000000000000000010");
   int_mask2=binaryToInt(mask2);
-  temp=registers[FLAGREG_ADDR] | int_mask2;
+  temp=temp | int_mask2;
   registers[FLAGREG_ADDR]=temp;
   return ++line;
 }
