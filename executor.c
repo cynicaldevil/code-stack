@@ -717,8 +717,13 @@ void resetCPU()
   registers[FRAMEPTR_ADDR]=0;
 }
 
-int main()
+int main(int argc, char *argv[] )
 {
+    if ( argc != 2 )
+    {
+        /* We print argv[0] assuming it is the program name */
+        printf( "USAGE: gcc executor.c -o exe\n./exe file.txt");
+    }
   resetCPU();
   FILE * fp1;
   fp1 = fopen("output.txt", "r");
@@ -726,20 +731,21 @@ int main()
     exit(EXIT_FAILURE);
 
   lines = countInstructions(fp1);
-  fp1 = fopen("output.txt", "r");
+  fp1 = fopen(argv[1], "r");
 
   convertInstructions(fp1);                                                    //each instraction is converted to a
   fclose(fp1);                                                                 //struct object; easier to handle
 
   executeInstructions();
   int i;
+  printf("\nREGISTERS:");
   for(i=0;i<32;i++)
   {
     if(i%8==0)
       printf("\n");
     printf("REG %d:%d      ",i,registers[i]);
   }
-  printf("NONEMPTY MEMORY:\n");
+  printf("\n\nNONEMPTY MEMORY:\n");
   for(i=0;i<TOTAL_MEMORY_ADDR;i++)
   {
     if(memory[i]!=0)
