@@ -4,6 +4,7 @@
 /opcodetable.c
 /test.c
 /binary
-/file2.asm~
-/output.txt~
+/file.asm
+/file2.asm
+/output.txt
 /exe

@@ -726,7 +726,7 @@ int main(int argc, char *argv[] )
     }
   resetCPU();
   FILE * fp1;
-  fp1 = fopen("output.txt", "r");
+  fp1 = fopen(argv[1], "r");
   if (fp1 == NULL)
     exit(EXIT_FAILURE);
 
