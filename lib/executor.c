@@ -1,5 +1,5 @@
 //C program which takes binary isntructions as input and executes them
-//after exection, displays content of registers
+//after execution, displays content of registers
 
 #include <stdio.h>
 #include <stdlib.h>
